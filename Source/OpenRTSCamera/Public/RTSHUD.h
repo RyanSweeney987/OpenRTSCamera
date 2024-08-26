@@ -1,4 +1,4 @@
-// Copyright 2024 Jesus Bracho All Rights Reserved.
+// Copyright 2024 Ryan Sweeney All Rights Reserved.
 
 #pragma once
 
@@ -6,41 +6,61 @@
 #include "GameFramework/HUD.h"
 #include "RTSHUD.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FSelectedActorsSignature, const TArray<AActor*>&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FHoveredActorsSignature, const TArray<AActor*>&);
+
 UCLASS()
 class OPENRTSCAMERA_API ARTSHUD : public AHUD
 {
 	GENERATED_BODY()
 
 public:
-	ARTSHUD();
-
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Selection Box")
 	FLinearColor SelectionBoxColor;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Selection Box")
 	float SelectionBoxThickness;
 
-	UFUNCTION(BlueprintCallable, Category = "Selection Box")
-	void BeginSelection(const FVector2D& StartPoint);
+	// UPROPERTY()
+	// Delegate for when any and all actors are selected
+	FSelectedActorsSignature OnSelectedActorsDelegate;
+
+	// UPROPERTY()
+	// Delegate for when any and all actors are hovered
+	FHoveredActorsSignature OnHoveredActorsDelegate;
+public:
+	ARTSHUD();
 
 	UFUNCTION(BlueprintCallable, Category = "Selection Box")
-	void UpdateSelection(const FVector2D& EndPoint);
+	void SetPlayerController(APlayerController* NewPlayerController);
 
 	UFUNCTION(BlueprintCallable, Category = "Selection Box")
-	void EndSelection();
+	void PositionOnMouse();
+	
+	UFUNCTION(BlueprintCallable, Category = "Selection Box")
+	void InitStartPosition();
 
-	UFUNCTION(BlueprintNativeEvent, Category = "Selection Box")
-	void DrawSelectionBox(const FVector2D& StartPoint, const FVector2D& EndPoint);
+	UFUNCTION(BlueprintCallable, Category = "Selection Box")
+	void UpdateEndPosition();
+	
+	UFUNCTION(BlueprintCallable, Category = "Selection Box")
+	void BeginGroupSelection();
 
-	UFUNCTION(BlueprintNativeEvent, Category = "Selection Box")
-	void PerformSelection();
-
+	UFUNCTION(BlueprintCallable, Category = "Selection Box")
+	void EndGroupSelection();
+	
 protected:
 	virtual void DrawHUD() override;
-
+	void DrawSelectionBox();
+	void PerformSelection();
+	
+	UPROPERTY()
+	TObjectPtr<APlayerController> PlayerController = nullptr;
 private:
+	
 	bool bIsDrawingSelectionBox;
-	bool bIsPerformingSelection;
+	bool bIsPerformingFinalSelection;
+	
 	FVector2D SelectionStart;
 	FVector2D SelectionEnd;
 };

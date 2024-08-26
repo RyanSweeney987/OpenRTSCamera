@@ -1,4 +1,5 @@
-// Copyright 2024 Jesus Bracho All Rights Reserved.
+// Copyright 2024 Ryan Sweeney All Rights Reserved.
+
 
 #include "RTSCamera.h"
 

@@ -1,5 +1,8 @@
+// Copyright 2024 Ryan Sweeney All Rights Reserved.
+
 #include "RTSHUD.h"
-#include "RTSSelector.h"
+
+#include "RTSSelectable.h"
 #include "Engine/Canvas.h"
 
 // Constructor implementation: Initializes default values.
@@ -8,49 +11,79 @@ ARTSHUD::ARTSHUD()
 	SelectionBoxColor = FLinearColor::Green;
 	SelectionBoxThickness = 1.0f;
 	bIsDrawingSelectionBox = false;
-	bIsPerformingSelection = false;
+	bIsPerformingFinalSelection = false;
 }
 
-// Implementation of the DrawHUD function. It's called every frame to draw the HUD.
+void ARTSHUD::SetPlayerController(APlayerController* NewPlayerController)
+{
+	this->PlayerController = NewPlayerController;
+}
+
+void ARTSHUD::PositionOnMouse()
+{
+	FVector2D MousePosition;
+	PlayerController->GetMousePosition(MousePosition.X, MousePosition.Y);
+	
+	SelectionStart = MousePosition - FVector2D(1, 1);
+	SelectionEnd = MousePosition + FVector2D(1, 1);
+}
+
+void ARTSHUD::InitStartPosition()
+{
+	FVector2D MousePosition;
+	PlayerController->GetMousePosition(MousePosition.X, MousePosition.Y);
+	
+	SelectionStart = MousePosition;
+}
+
+void ARTSHUD::UpdateEndPosition()
+{
+	FVector2D MousePosition;
+	PlayerController->GetMousePosition(MousePosition.X, MousePosition.Y);
+	
+	SelectionEnd = MousePosition;
+}
+
+// Starts the selection process, setting the initial point and activating the selection flag.
+void ARTSHUD::BeginGroupSelection()
+{
+	bIsDrawingSelectionBox = true;
+}
+
+// Ends the selection process and triggers the selection logic.
+void ARTSHUD::EndGroupSelection()
+{
+	FVector2D MousePosition;
+	PlayerController->GetMousePosition(MousePosition.X, MousePosition.Y);
+	
+	SelectionEnd = MousePosition;
+	
+	bIsDrawingSelectionBox = false;
+	bIsPerformingFinalSelection = true;
+}
+
+/**
+ * Called when the HUD should be drawn.
+ * Selection uses a HUD function which needs to be called when the HUD is drawn
+ */
 void ARTSHUD::DrawHUD()
 {
 	Super::DrawHUD(); // Call the base class implementation.
-
+		
 	// Draw the selection box if it's active.
 	if (bIsDrawingSelectionBox)
 	{
-		DrawSelectionBox(SelectionStart, SelectionEnd);
+		DrawSelectionBox();
 	}
 
-	// Perform selection actions if required.
-	if (bIsPerformingSelection)
+	if (bIsDrawingSelectionBox || bIsPerformingFinalSelection)
 	{
 		PerformSelection();
 	}
 }
 
-// Starts the selection process, setting the initial point and activating the selection flag.
-void ARTSHUD::BeginSelection(const FVector2D& StartPoint)
-{
-	SelectionStart = StartPoint;
-	bIsDrawingSelectionBox = true;
-}
-
-// Updates the current endpoint of the selection box.
-void ARTSHUD::UpdateSelection(const FVector2D& EndPoint)
-{
-	SelectionEnd = EndPoint;
-}
-
-// Ends the selection process and triggers the selection logic.
-void ARTSHUD::EndSelection()
-{
-	bIsDrawingSelectionBox = false;
-	bIsPerformingSelection = true;
-}
-
 // Default implementation of DrawSelectionBox. Draws a rectangle on the HUD.
-void ARTSHUD::DrawSelectionBox_Implementation(const FVector2D& StartPoint, const FVector2D& EndPoint)
+void ARTSHUD::DrawSelectionBox()
 {
 	if (Canvas)
 	{
@@ -67,20 +100,30 @@ void ARTSHUD::DrawSelectionBox_Implementation(const FVector2D& StartPoint, const
 }
 
 // Default implementation of PerformSelection. Selects actors within the selection box.
-void ARTSHUD::PerformSelection_Implementation()
+void ARTSHUD::PerformSelection()
 {
+	// UE_LOG(LogTemp, Warning, TEXT("HUD - Perform Selection"));
+	
 	// Array to store actors that are within the selection rectangle.
 	TArray<AActor*> SelectedActors;
 	GetActorsInSelectionRectangle<AActor>(SelectionStart, SelectionEnd, SelectedActors, false, false);
 
-	// Find the URTSSelector component and pass the selected actors to it.
-	if (const auto PC = GetOwningPlayerController())
+	// if(SelectedActors.Num() > 2)
+	// {
+	// 	for(const auto& Actor : SelectedActors)
+	// 	{
+	// 		// UE_LOG(LogTemp, Warning, TEXT("Selected Actor: %s"), *Actor->GetName());
+	// 		FBox Box = Actor->GetComponentsBoundingBox();
+	// 		DrawDebugBox(GetWorld(), Box.GetCenter(), Box.GetExtent(), FColor::Green, false, 0.1f);
+	// 	}
+	// }
+	
+	if(bIsPerformingFinalSelection) {
+		OnSelectedActorsDelegate.Broadcast(SelectedActors);
+	} else
 	{
-		if (const auto SelectorComponent = PC->FindComponentByClass<URTSSelector>())
-		{
-			SelectorComponent->HandleSelectedActors(SelectedActors);
-		}
+		OnHoveredActorsDelegate.Broadcast(SelectedActors);
 	}
 
-	bIsPerformingSelection = false;
+	bIsPerformingFinalSelection = false;
 }
